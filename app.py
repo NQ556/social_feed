@@ -232,7 +232,7 @@ def getPosts(current_user):
 
 @app.route('/getPostsById', methods=['GET'])
 @token_required
-def getPosts(current_user):
+def getPostsById(current_user):
     posts = Comment.query.filter_by(userId=current_user.id).all()
     post_list = []
 
