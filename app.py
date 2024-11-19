@@ -67,16 +67,63 @@ def token_required(f):
     @wraps(f)
     def decorated(*args, **kwargs):
         token = request.headers.get('Authorization')
+
         if not token:
             return jsonify({"message": "Token is missing!"}), 403
+        
         try:
             token = token.split(" ")[1]
             data = jwt.decode(token, app.config['SECRET_KEY'], algorithms=["HS256"])
             current_user = User.query.get(data['user_id'])
-        except Exception as e:
-            return jsonify({"message": "Token is invalid!", "error": str(e)}), 403
+
+        except jwt.ExpiredSignatureError:
+            return jsonify({"message": "Token has expired!"}), 401
+        
+        except jwt.InvalidTokenError:
+            return jsonify({"message": "Token is invalid!"}), 403
+        
         return f(current_user, *args, **kwargs)
+    
     return decorated
+
+@app.route('/refreshToken', methods=['POST'])
+def refresh_token():
+    data = request.get_json()
+    refresh_token = data.get('refresh_token')
+    
+    if not refresh_token:
+        return jsonify({"message": "Refresh token is missing!"}), 403
+
+    try:
+        data = jwt.decode(refresh_token, app.config['SECRET_KEY'], algorithms=["HS256"])
+        current_user = User.query.get(data['user_id'])
+
+        #if not current_user:
+        #    return jsonify({"message": "User not found!"}), 404
+        
+        # Generate a new access token
+        new_access_token = jwt.encode({
+            "user_id": current_user.id,
+            "exp": datetime.utcnow() + timedelta(hours=1)
+        }, app.config['SECRET_KEY'], algorithm="HS256")
+
+        # Generate a new refresh token
+        new_refresh_token = jwt.encode({
+            "user_id": current_user.id,
+            "exp": datetime.utcnow() + timedelta(days=7)
+        }, app.config['SECRET_KEY'], algorithm="HS256")
+        
+        return jsonify({
+            "message": "Token refreshed successfully",
+            "access_token": new_access_token,
+            "refresh_token": new_refresh_token
+        }), 200
+    
+    except jwt.ExpiredSignatureError:
+        return jsonify({"message": "Refresh token expired!"}), 401
+    except jwt.InvalidTokenError:
+        return jsonify({"message": "Invalid refresh token!"}), 403
+
 
 # Routes
 @app.route('/signUp', methods=['POST'])
@@ -88,16 +135,23 @@ def signUp():
     db.session.add(new_user)
     db.session.commit()
 
-    # Generate token
-    token = jwt.encode({
+    # Generate access token
+    access_token = jwt.encode({
         "user_id": new_user.id,
         "exp": datetime.utcnow() + timedelta(hours=1)
+    }, app.config['SECRET_KEY'], algorithm="HS256")
+
+    # Generate refresh token
+    refresh_token = jwt.encode({
+        "user_id": new_user.id,
+        "exp": datetime.utcnow() + timedelta(days=7)
     }, app.config['SECRET_KEY'], algorithm="HS256")
     
     return jsonify({
         "message": "User registered successfully!",
         "userId": new_user.id,
-        "token": token
+        "accessToken": access_token,
+        "refreshToken": refresh_token
     }), 201
 
 
@@ -107,13 +161,23 @@ def signIn():
     user = User.query.filter_by(email=data['email']).first()
     
     if user and bcrypt.check_password_hash(user.password, data['password']):
-        # Generate token
-        token = jwt.encode({
+        # Generate access token
+        access_token = jwt.encode({
             "user_id": user.id,
             "exp": datetime.utcnow() + timedelta(hours=1)
         }, app.config['SECRET_KEY'], algorithm="HS256")
+
+        # Generate refresh token
+        refresh_token = jwt.encode({
+            "user_id": user.id,
+            "exp": datetime.utcnow() + timedelta(days=7)
+        }, app.config['SECRET_KEY'], algorithm="HS256")
         
-        return jsonify({"message": "Login successful!", "userId": user.id, "token": token}), 200
+        return jsonify({
+            "message": "Login successful!", 
+            "userId": user.id, 
+            "accessToken": access_token,
+            "refreshToken": refresh_token}), 200
     
     return jsonify({"message": "Invalid email or password"}), 401
 
@@ -144,6 +208,32 @@ def createPost(current_user):
 @token_required
 def getPosts(current_user):
     posts = Post.query.all()
+    post_list = []
+
+    for post in posts:
+        likes_count = PostLikes.query.filter_by(postId=post.id).count()
+        shares_count = PostShares.query.filter_by(postId=post.id).count()
+        comments_count = Comment.query.filter_by(postId=post.id).count()
+        
+        post_list.append({
+            "id": post.id,
+            "userId": post.userId,
+            "content": post.content,
+            "updatedAt": post.updatedAt,
+            "username": post.user.username,
+            "email": post.user.email,
+            "avatarUrl": post.user.avatarUrl,
+            "likesCount": likes_count,
+            "sharesCount": shares_count,
+            "commentsCount": comments_count
+        })
+    
+    return jsonify(post_list), 200
+
+@app.route('/getPostsById', methods=['GET'])
+@token_required
+def getPosts(current_user):
+    posts = Comment.query.filter_by(userId=current_user.id).all()
     post_list = []
 
     for post in posts:
@@ -242,6 +332,64 @@ def createComment(current_user):
         "commentsCount": 0,
         "parentCommentId": new_comment.parentCommentId
     }), 201
+
+@app.route('/createPostLike', methods=['POST'])
+@token_required
+def createPostLike(current_user):
+    data = request.get_json()
+    post_id = data.get('postId')
+
+    post = Post.query.get(post_id)
+    if not post:
+        return jsonify({"message": "Post not found"}), 404
+
+    # Check if the user has already liked the post
+    existing_like = PostLikes.query.filter_by(postId=post_id, userId=current_user.id).first()
+    if existing_like:
+        return jsonify({"message": "User has already liked this post"}), 400
+
+    # Create a new like
+    new_like = PostLikes(postId=post_id, userId=current_user.id)
+    db.session.add(new_like)
+    db.session.commit()
+
+    likes_count = PostLikes.query.filter_by(postId=post_id).count()
+
+    return jsonify({
+        "message": "Post liked successfully",
+        "postId": post_id,
+        "likesCount": likes_count
+    }), 201
+
+@app.route('/getLikedPostsByUserId', methods=['GET'])
+@token_required
+def getLikedPostsByUserId(current_user):
+    liked_posts = PostLikes.query.filter_by(userId=current_user.id).all()
+    
+    post_list = []
+
+    for like in liked_posts:
+        post = Post.query.get(like.postId)
+
+        if post:
+            likes_count = PostLikes.query.filter_by(postId=post.id).count()
+            shares_count = PostShares.query.filter_by(postId=post.id).count()
+            comments_count = Comment.query.filter_by(postId=post.id).count()
+
+            post_list.append({
+                "id": post.id,
+                "userId": post.userId,
+                "content": post.content,
+                "updatedAt": post.updatedAt,
+                "username": post.user.username,
+                "email": post.user.email,
+                "avatarUrl": post.user.avatarUrl,
+                "likesCount": likes_count,
+                "sharesCount": shares_count,
+                "commentsCount": comments_count
+            })
+
+    return jsonify(post_list), 200
 
 # Initialize DB
 with app.app_context():
