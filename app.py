@@ -89,7 +89,7 @@ def token_required(f):
 @app.route('/refreshToken', methods=['POST'])
 def refresh_token():
     data = request.get_json()
-    refresh_token = data.get('refresh_token')
+    refresh_token = data['refreshToken']
     
     if not refresh_token:
         return jsonify({"message": "Refresh token is missing!"}), 403
@@ -97,9 +97,6 @@ def refresh_token():
     try:
         data = jwt.decode(refresh_token, app.config['SECRET_KEY'], algorithms=["HS256"])
         current_user = User.query.get(data['user_id'])
-
-        #if not current_user:
-        #    return jsonify({"message": "User not found!"}), 404
         
         # Generate a new access token
         new_access_token = jwt.encode({
@@ -115,6 +112,7 @@ def refresh_token():
         
         return jsonify({
             "message": "Token refreshed successfully",
+            "userId": data['user_id'],
             "access_token": new_access_token,
             "refresh_token": new_refresh_token
         }), 200
