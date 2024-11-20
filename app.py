@@ -186,7 +186,7 @@ def signIn():
 def getUserInfo(current_user):
     return jsonify({
         "id": current_user.id,
-        "email": current_user.userId,
+        "email": current_user.email,
         "username": current_user.username,
         "avatarUrl": current_user.avatarUrl,
     }), 200
