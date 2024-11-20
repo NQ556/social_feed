@@ -344,8 +344,8 @@ def createComment(current_user):
 @app.route('/createPostLike', methods=['POST'])
 @token_required
 def createPostLike(current_user):
-    data = request.get_json()
-    post_id = data.get('postId')
+    # data = request.get_json()
+    post_id = request.get_json()
 
     post = Post.query.get(post_id)
     if not post:
@@ -401,8 +401,8 @@ def getLikedPostsByUserId(current_user):
 @app.route('/removePostLike', methods=['DELETE'])
 @token_required
 def removePostLike(current_user):
-    data = request.get_json()
-    post_id = data.get('postId')
+    #data = request.get_json()
+    post_id = request.get_json()
 
     post = Post.query.get(post_id)
     if not post:
