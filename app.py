@@ -366,16 +366,8 @@ def createPostLike(current_user):
     likes_count = PostLikes.query.filter_by(postId=post_id).count()
 
     return jsonify({
-        "id": post.id,
-        "userId": post.userId,
-        "content": post.content,
-        "updatedAt": post.updatedAt,
-        "username": post.user.username,
-        "email": post.user.email,
-        "avatarUrl": post.user.avatarUrl,
-        "likesCount": likes_count,
-        "sharesCount": 0,
-        "commentsCount": 0
+        "postId": post_id,
+        "likesCount": likes_count
     }), 201
 
 @app.route('/getLikedPostsByUserId', methods=['GET'])
@@ -428,9 +420,8 @@ def removePostLike(current_user):
     likes_count = PostLikes.query.filter_by(postId=post_id).count()
 
     return jsonify({
-        "message": "Post unliked successfully",
         "postId": post_id,
-        "updatedLikesCount": likes_count
+        "likesCount": likes_count
     }), 200
 
 
