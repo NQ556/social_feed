@@ -408,7 +408,7 @@ def getLikedPostsByUserId(current_user):
 
     return jsonify(post_list), 200
 
-@app.route('/removePostLike', methods=['POST'])
+@app.route('/removePostLike', methods=['DELETE'])
 @token_required
 def removePostLike(current_user):
     data = request.get_json()
