@@ -208,7 +208,8 @@ def createPost(current_user):
         "avatarUrl": current_user.avatarUrl,
         "likesCount": 0,
         "sharesCount": 0,
-        "commentsCount": 0
+        "commentsCount": 0,
+        "isLiked": false
     }), 201
 
 
@@ -222,6 +223,7 @@ def getPosts(current_user):
         likes_count = PostLikes.query.filter_by(postId=post.id).count()
         shares_count = PostShares.query.filter_by(postId=post.id).count()
         comments_count = Comment.query.filter_by(postId=post.id).count()
+        is_liked = PostLikes.query.filter_by(postId=post.id, userId=current_user.id).first() is not None
         
         post_list.append({
             "id": post.id,
@@ -233,7 +235,8 @@ def getPosts(current_user):
             "avatarUrl": post.user.avatarUrl,
             "likesCount": likes_count,
             "sharesCount": shares_count,
-            "commentsCount": comments_count
+            "commentsCount": comments_count,
+            "isLiked": is_liked
         })
     
     return jsonify(post_list), 200
@@ -248,6 +251,7 @@ def getPostsById(current_user):
         likes_count = PostLikes.query.filter_by(postId=post.id).count()
         shares_count = PostShares.query.filter_by(postId=post.id).count()
         comments_count = Comment.query.filter_by(postId=post.id).count()
+        is_liked = PostLikes.query.filter_by(postId=post.id, userId=current_user.id).first() is not None
         
         post_list.append({
             "id": post.id,
@@ -259,7 +263,8 @@ def getPostsById(current_user):
             "avatarUrl": post.user.avatarUrl,
             "likesCount": likes_count,
             "sharesCount": shares_count,
-            "commentsCount": comments_count
+            "commentsCount": comments_count,
+            "isLiked": is_liked
         })
     
     return jsonify(post_list), 200
@@ -382,6 +387,7 @@ def getLikedPostsByUserId(current_user):
             likes_count = PostLikes.query.filter_by(postId=post.id).count()
             shares_count = PostShares.query.filter_by(postId=post.id).count()
             comments_count = Comment.query.filter_by(postId=post.id).count()
+            is_liked = PostLikes.query.filter_by(postId=post.id, userId=current_user.id).first() is not None
 
             post_list.append({
                 "id": post.id,
@@ -393,7 +399,8 @@ def getLikedPostsByUserId(current_user):
                 "avatarUrl": post.user.avatarUrl,
                 "likesCount": likes_count,
                 "sharesCount": shares_count,
-                "commentsCount": comments_count
+                "commentsCount": comments_count,
+                "isLiked": is_liked
             })
 
     return jsonify(post_list), 200
