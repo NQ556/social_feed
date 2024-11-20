@@ -183,7 +183,7 @@ def signIn():
 
 @app.route('/getUserInfo', methods=['GET'])
 @token_required
-def createPost(current_user):
+def getUserInfo(current_user):
     return jsonify({
         "id": current_user.id,
         "email": current_user.userId,
