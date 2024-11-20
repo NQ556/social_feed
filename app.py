@@ -181,6 +181,16 @@ def signIn():
     
     return jsonify({"message": "Invalid email or password"}), 401
 
+@app.route('/getUserInfo', methods=['GET'])
+@token_required
+def createPost(current_user):
+    return jsonify({
+        "id": current_user.id,
+        "email": current_user.userId,
+        "username": current_user.username,
+        "avatarUrl": current_user.avatarUrl,
+    }), 200
+
 @app.route('/createPost', methods=['POST'])
 @token_required
 def createPost(current_user):
@@ -356,9 +366,16 @@ def createPostLike(current_user):
     likes_count = PostLikes.query.filter_by(postId=post_id).count()
 
     return jsonify({
-        "message": "Post liked successfully",
-        "postId": post_id,
-        "likesCount": likes_count
+        "id": post.id,
+        "userId": post.userId,
+        "content": post.content,
+        "updatedAt": post.updatedAt,
+        "username": post.user.username,
+        "email": post.user.email,
+        "avatarUrl": post.user.avatarUrl,
+        "likesCount": likes_count,
+        "sharesCount": 0,
+        "commentsCount": 0
     }), 201
 
 @app.route('/getLikedPostsByUserId', methods=['GET'])
@@ -390,6 +407,32 @@ def getLikedPostsByUserId(current_user):
             })
 
     return jsonify(post_list), 200
+
+@app.route('/removePostLike', methods=['POST'])
+@token_required
+def removePostLike(current_user):
+    data = request.get_json()
+    post_id = data.get('postId')
+
+    post = Post.query.get(post_id)
+    if not post:
+        return jsonify({"message": "Post not found"}), 404
+
+    existing_like = PostLikes.query.filter_by(postId=post_id, userId=current_user.id).first()
+    if not existing_like:
+        return jsonify({"message": "You have not liked this post"}), 400
+
+    db.session.delete(existing_like)
+    db.session.commit()
+
+    likes_count = PostLikes.query.filter_by(postId=post_id).count()
+
+    return jsonify({
+        "message": "Post unliked successfully",
+        "postId": post_id,
+        "updatedLikesCount": likes_count
+    }), 200
+
 
 # Initialize DB
 with app.app_context():
