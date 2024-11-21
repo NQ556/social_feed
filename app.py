@@ -209,7 +209,7 @@ def createPost(current_user):
         "likesCount": 0,
         "sharesCount": 0,
         "commentsCount": 0,
-        "isLiked": false
+        "isLiked": False
     }), 201
 
 
