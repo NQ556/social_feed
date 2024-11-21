@@ -409,7 +409,7 @@ def getLikedPostsByUserId(current_user):
 @token_required
 def removePostLike(current_user):
     #data = request.get_json()
-    post_id = request.get_json()
+    post_id = request.args.get('postId')
 
     post = Post.query.get(post_id)
     if not post:
